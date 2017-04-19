@@ -1,4 +1,5 @@
-﻿using System.Data;
+﻿using System;
+using System.Data;
 using System.IO;
 using System.Management.Automation;
 using Microsoft.Build.Construction;
@@ -8,10 +9,12 @@ namespace GetSlnItem
     [Cmdlet(VerbsCommon.Get, "SlnItem")]
     public class GetSlnItemCommand : Cmdlet
     {
-        private string slnPath, virtualPath;
+        private string slnPath;
+        private VirtualPath virtualPath;
+        private bool directory, file, recurse;
 
         [Parameter(
-            ParameterSetName = "SlnPath",
+            Position = 0,
             Mandatory = true,
             ValueFromPipeline = true,
             ValueFromPipelineByPropertyName = true,
@@ -23,7 +26,7 @@ namespace GetSlnItem
 
             set
             {
-                if (!File.Exists(value))
+                if (!System.IO.File.Exists(value))
                 {
                     throw new FileNotFoundException();
                 }
@@ -38,22 +41,50 @@ namespace GetSlnItem
         }
 
         [Parameter(
-            ParameterSetName = "VirtualPath",
-            Mandatory = false,
-            ValueFromPipelineByPropertyName = true,
-            HelpMessage = "Path within the solution file internal virtual file structure."
-            )]
-        public string VirtualPath { get; set; }
+             Position = 1,
+             Mandatory = false,
+             ValueFromPipelineByPropertyName = true,
+             HelpMessage = "Path within the solution file internal virtual file structure."
+         )]
+        public string VirtualPath
+        {
+            get { return virtualPath.ToString(); }
+            set { virtualPath = new VirtualPath(value); }
+        }
+
+        [Parameter(
+         )]
+        public SwitchParameter Directory
+        {
+            get { return directory;  }
+            set { directory = value; }
+        }
+
+        [Parameter(
+         )]
+        public SwitchParameter File
+        {
+            get { return file; }
+            set { file = value; }
+        }
+
+        [Parameter(
+         )]
+        public SwitchParameter Recurse
+        {
+            get { return recurse; }
+            set { recurse = value; }
+        }
 
         protected override void ProcessRecord()
         {
             var solutionFile = SolutionFile.Parse(SlnPath);
-            var items = new DataTable("Sample Table");
+            var table = new DataTable("Sample Table");
             var column = new DataColumn("Name");
-            items.Columns.Add(column);
+            table.Columns.Add(column);
 
             column = new DataColumn("Absolute Path");
-            items.Columns.Add(column);
+            table.Columns.Add(column);
 
             foreach (var bla in solutionFile.ProjectsInOrder)
             {
@@ -61,16 +92,15 @@ namespace GetSlnItem
                 {
                     if (bla.ParentProjectGuid == null)
                     {
-                        var row = items.NewRow();
+                        var row = table.NewRow();
                         row["Name"] = bla.ProjectName;
                         row["Absolute Path"] = bla.AbsolutePath;
-                        items.Rows.Add(row);
+                        table.Rows.Add(row);
                     }
                 }
             }
 
-            WriteObject(items, true);
-
+            WriteObject(table, true);
         }
     }
 }
