@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using System.IO;
+using System.Linq;
 using System.Management.Automation;
 using Microsoft.Build.Construction;
 
@@ -46,11 +48,7 @@ namespace GetSlnItem
              ValueFromPipelineByPropertyName = true,
              HelpMessage = "Path within the solution file internal virtual file structure."
          )]
-        public string VirtualPath
-        {
-            get { return virtualPath.ToString(); }
-            set { virtualPath = new VirtualPath(value); }
-        }
+        public string VirtualPath { get; set; }
 
         [Parameter(
          )]
@@ -78,29 +76,43 @@ namespace GetSlnItem
 
         protected override void ProcessRecord()
         {
+            virtualPath = new VirtualPath(VirtualPath);
+
             var solutionFile = SolutionFile.Parse(SlnPath);
-            var table = new DataTable("Sample Table");
-            var column = new DataColumn("Name");
-            table.Columns.Add(column);
+            string currDirGuid = null;
 
-            column = new DataColumn("Absolute Path");
-            table.Columns.Add(column);
-
-            foreach (var bla in solutionFile.ProjectsInOrder)
-            {
-                if (virtualPath == null)
+            if (!string.IsNullOrEmpty(virtualPath.ToString()))
+                foreach (var nextItem in virtualPath.PathParts)
                 {
-                    if (bla.ParentProjectGuid == null)
+                    try
                     {
-                        var row = table.NewRow();
-                        row["Name"] = bla.ProjectName;
-                        row["Absolute Path"] = bla.AbsolutePath;
-                        table.Rows.Add(row);
+                        currDirGuid =
+                            solutionFile.ProjectsInOrder
+                            .Where(project => project.ParentProjectGuid == currDirGuid)
+                            .Single(project => project.ProjectName.Trim().ToLower() == nextItem.Trim().ToLower())
+                            .ProjectGuid;
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        throw new ArgumentException(string.Format(
+                            "The {0} in virtual path {1} not found in SLN structure.", nextItem, virtualPath));
                     }
                 }
-            }
 
-            WriteObject(table, true);
+            // TODO: Recurse
+
+            var items = solutionFile.ProjectsInOrder.Where(project => project.ParentProjectGuid == currDirGuid)
+                                .ToList();
+
+            var dir = new DirectoryItemsDataTable(directory, file);
+
+            if (items.Count > 0)
+                foreach (var item in items)
+                {
+                    dir.addItem(item);
+                }
+
+            WriteObject(dir.Table, true);
         }
     }
 }
