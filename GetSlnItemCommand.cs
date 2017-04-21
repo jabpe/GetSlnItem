@@ -9,7 +9,7 @@ using Microsoft.Build.Construction;
 namespace GetSlnItem
 {
     [Cmdlet(VerbsCommon.Get, "SlnItem")]
-    public class GetSlnItemCommand : Cmdlet
+    public class GetSlnItemCommand : PSCmdlet
     {
         private string slnPath;
         private VirtualPath virtualPath;
@@ -28,17 +28,19 @@ namespace GetSlnItem
 
             set
             {
-                if (!System.IO.File.Exists(value))
+                var path = SessionState.Path.GetUnresolvedProviderPathFromPSPath(value);
+
+                if (!System.IO.File.Exists(path))
                 {
                     throw new FileNotFoundException();
                 }
 
-                if (!Path.HasExtension(value) || Path.GetExtension(value) != ".sln")
+                if (!Path.HasExtension(path) || Path.GetExtension(path) != ".sln")
                 {
                     throw new FileLoadException("Only .sln file extensions supported.");
                 }
-                
-                slnPath = value;
+
+                slnPath = path;
             }
         }
 
@@ -76,21 +78,24 @@ namespace GetSlnItem
 
         protected override void ProcessRecord()
         {
+            
             virtualPath = new VirtualPath(VirtualPath);
 
             var solutionFile = SolutionFile.Parse(SlnPath);
             string currDirGuid = null;
 
+            // Set currDirGuid to last dir in VirtualPath, if found in solution
             if (!string.IsNullOrEmpty(virtualPath.ToString()))
+            {
                 foreach (var nextItem in virtualPath.PathParts)
                 {
                     try
                     {
                         currDirGuid =
                             solutionFile.ProjectsInOrder
-                            .Where(project => project.ParentProjectGuid == currDirGuid)
-                            .Single(project => project.ProjectName.Trim().ToLower() == nextItem.Trim().ToLower())
-                            .ProjectGuid;
+                                .Where(project => project.ParentProjectGuid == currDirGuid)
+                                .Single(project => project.ProjectName.Trim().ToLower() == nextItem.Trim().ToLower())
+                                .ProjectGuid;
                     }
                     catch (InvalidOperationException)
                     {
@@ -98,21 +103,43 @@ namespace GetSlnItem
                             "The {0} in virtual path {1} not found in SLN structure.", nextItem, virtualPath));
                     }
                 }
+            }
 
-            // TODO: Recurse
+            var dirStack = new Stack<Tuple<string, string>>();
+            dirStack.Push(new Tuple<string, string>(currDirGuid, virtualPath.ToString()));
 
-            var items = solutionFile.ProjectsInOrder.Where(project => project.ParentProjectGuid == currDirGuid)
-                                .ToList();
+            var tables = new DataSet("Directories");
 
-            var dir = new DirectoryItemsDataTable(directory, file);
+            while (dirStack.Count > 0)
+            {
+                currDirGuid = dirStack.Peek().Item1;
+                var currDirVirtPath = dirStack.Peek().Item2;
+                dirStack.Pop();
 
-            if (items.Count > 0)
-                foreach (var item in items)
+                if (recurse)
                 {
-                    dir.addItem(item);
+                    foreach (var nextDir in solutionFile.ProjectsInOrder
+                        .Where(project => project.ProjectType == SolutionProjectType.SolutionFolder
+                                          && project.ParentProjectGuid == currDirGuid).ToList())
+                    {
+                        // Push next folders to recurse to to stack
+                        dirStack.Push(new Tuple<string, string>(nextDir.ProjectGuid,
+                            string.Concat(currDirVirtPath,
+                            nextDir.ProjectName,
+                            Path.DirectorySeparatorChar.ToString())));
+                    }
                 }
 
-            WriteObject(dir.Table, true);
+                var dir = new DirectoryItemsDataTable(currDirVirtPath, directory, file);
+
+                dir.AddItems(solutionFile.ProjectsInOrder
+                    .Where(project => project.ParentProjectGuid == currDirGuid)
+                    .ToList());
+
+                tables.Tables.Add(dir.Table);
+            }
+
+            WriteObject(tables.Tables);
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Data;
+﻿using System.Collections.Generic;
+using System.Data;
 using Microsoft.Build.Construction;
 
 namespace GetSlnItem
@@ -7,30 +8,41 @@ namespace GetSlnItem
     class DirectoryItemsDataTable
     {
         private readonly bool directory, file;
+        private readonly string virtualPath;
         public DataTable Table { get; private set; }
 
-        public DirectoryItemsDataTable(bool directory, bool file)
+        public DirectoryItemsDataTable(string virtualPath, bool directory, bool file)
         {
-            Table = new DataTable("Directory");
+            this.virtualPath = virtualPath;
+            Table = new DataTable(virtualPath);
             this.directory = directory;
             this.file = file;
-            Table.Columns.Add(new DataColumn("Name"));
-            Table.Columns.Add(new DataColumn("FullName"));
-            Table.Columns.Add(new DataColumn("ItemType"));
+            Table.Columns.Add(new DataColumn("Name", typeof(string)));
+            Table.Columns.Add(new DataColumn("VirtualDirectory", typeof(string)));
+            Table.Columns.Add(new DataColumn("Path", typeof(string)));
+            Table.Columns.Add(new DataColumn("ItemType", typeof(string)));
         }
 
-        public void addItem(ProjectInSolution item)
+        public void AddItems(IList<ProjectInSolution> items)
         {
-            var row = Table.NewRow();
-            row["Name"] = item.ProjectName;
-            row["FullName"] = item.AbsolutePath;
-            row["ItemType"] = item.ProjectType == SolutionProjectType.SolutionFolder ? "Directory"
-                : item.ProjectType == SolutionProjectType.KnownToBeMSBuildFormat ? "Project" : "File";
+            if (items == null)
+                return;
 
-            if ((!directory && !file)
-                        || (directory && row["ItemType"].ToString() == "Directory")
-                        || (file && (row["ItemType"].ToString() == "Project" || row["ItemType"].ToString() == "File")))
-                Table.Rows.Add(row);
+            foreach (var item in items)
+            {
+                var row = Table.NewRow();
+                row["Name"] = item.ProjectName;
+                row["Path"] = System.IO.File.Exists(item.AbsolutePath) ? item.RelativePath : null;
+                row["ItemType"] = item.ProjectType == SolutionProjectType.SolutionFolder
+                    ? "Directory"
+                    : item.ProjectType == SolutionProjectType.KnownToBeMSBuildFormat ? "Project" : "File";
+                row["VirtualDirectory"] = virtualPath;
+
+                if ((!directory && !file)
+                    || (directory && row["ItemType"].ToString() == "Directory")
+                    || (file && (row["ItemType"].ToString() == "Project" || row["ItemType"].ToString() == "File")))
+                    Table.Rows.Add(row);
+            }
         }
 
     }

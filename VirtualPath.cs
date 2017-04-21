@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 
 namespace GetSlnItem
 {
@@ -31,7 +29,7 @@ namespace GetSlnItem
 
                 if (PathParts.Count - 1 > 0 && string.IsNullOrEmpty(PathParts[PathParts.Count - 1]))
                 {
-                    PathParts.RemoveAt(PathParts.Count-1);
+                    PathParts.RemoveAt(PathParts.Count - 1);
                 }
 
                 if (PathParts.Contains(null) || PathParts.Contains(""))
@@ -41,7 +39,10 @@ namespace GetSlnItem
 
         public override string ToString()
         {
-            return string.Join(Path.DirectorySeparatorChar.ToString(), PathParts);
+            return (PathParts.Count==0) ? Path.DirectorySeparatorChar.ToString()
+                :string.Concat(Path.DirectorySeparatorChar.ToString(),
+                    string.Join(Path.DirectorySeparatorChar.ToString(), PathParts),
+                    Path.DirectorySeparatorChar.ToString());
         }
     }
 }
