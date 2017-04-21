@@ -8,6 +8,14 @@ using Microsoft.Build.Construction;
 
 namespace GetSlnItem
 {
+    /// <summary>
+    /// Gets all child items from the virtual file structure of a Visual Studio SLN (solution) file.
+    /// </summary>
+    /// <example>
+    ///     <code>Get-SlnItem -SlnPath Solution\Solution.sln -VirtualPath Server\Scheduler -File -Recurse</code>
+    ///     <para>Gets all the file items (including .csproj projects) from the Server\Scheduler folder and its child folders within the Solution\Solution.sln solution file.</para>
+    /// </example>
+    /// <seealso cref="System.Management.Automation.PSCmdlet" />
     [Cmdlet(VerbsCommon.Get, "SlnItem")]
     public class GetSlnItemCommand : PSCmdlet
     {
@@ -15,6 +23,14 @@ namespace GetSlnItem
         private VirtualPath virtualPath;
         private bool directory, file, recurse;
 
+        /// <summary>
+        /// Gets or sets the SLN path.
+        /// </summary>
+        /// <value>
+        /// The SLN path.
+        /// </value>
+        /// <exception cref="FileNotFoundException">File not found in filesystem.</exception>
+        /// <exception cref="FileLoadException">Only .sln file extensions supported.</exception>
         [Parameter(
             Position = 0,
             Mandatory = true,
@@ -44,6 +60,12 @@ namespace GetSlnItem
             }
         }
 
+        /// <summary>
+        /// Gets or sets the virtual path.
+        /// </summary>
+        /// <value>
+        /// The virtual path.
+        /// </value>
         [Parameter(
              Position = 1,
              Mandatory = false,
@@ -52,6 +74,9 @@ namespace GetSlnItem
          )]
         public string VirtualPath { get; set; }
 
+        /// <summary>
+        /// Get only directories from virtual file structure.
+        /// </summary>
         [Parameter(
          )]
         public SwitchParameter Directory
@@ -60,6 +85,9 @@ namespace GetSlnItem
             set { directory = value; }
         }
 
+        /// <summary>
+        /// Get only files (including .csproj projects) from virtual file structure.
+        /// </summary>
         [Parameter(
          )]
         public SwitchParameter File
@@ -68,6 +96,9 @@ namespace GetSlnItem
             set { file = value; }
         }
 
+        /// <summary>
+        /// Recurse to all lower virtual directories.
+        /// </summary>
         [Parameter(
          )]
         public SwitchParameter Recurse
