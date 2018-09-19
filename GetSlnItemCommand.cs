@@ -165,7 +165,7 @@ namespace GetSlnItem
 
                 dir.AddItems(solutionFile.ProjectsInOrder
                     .Where(project => project.ParentProjectGuid == currDirGuid)
-                    .ToList());
+                    .ToList(), solutionFile.ProjectsInOrder);
 
                 tables.Tables.Add(dir.Table);
             }

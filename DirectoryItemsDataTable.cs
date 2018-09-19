@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using Microsoft.Build.Construction;
 
 namespace GetSlnItem
@@ -21,9 +22,10 @@ namespace GetSlnItem
             Table.Columns.Add(new DataColumn("VirtualDirectory", typeof(string)));
             Table.Columns.Add(new DataColumn("Path", typeof(string)));
             Table.Columns.Add(new DataColumn("ItemType", typeof(string)));
+            Table.Columns.Add(new DataColumn("ProjectDependencies", typeof(List<string>)));
         }
 
-        public void AddItems(IList<ProjectInSolution> items)
+        public void AddItems(IList<ProjectInSolution> items, IReadOnlyList<ProjectInSolution> projectsInSolution)
         {
             if (items == null)
                 return;
@@ -37,6 +39,13 @@ namespace GetSlnItem
                     ? "Directory"
                     : item.ProjectType == SolutionProjectType.KnownToBeMSBuildFormat ? "Project" : "File";
                 row["VirtualDirectory"] = virtualPath;
+
+                // include project dependencies;
+                // get names by guid
+                row["ProjectDependencies"] = item.Dependencies
+                    .Select(x => projectsInSolution.SingleOrDefault(p => p.ProjectGuid == x)?.ProjectName)
+                    .Where(x => !string.IsNullOrEmpty(x))
+                    .ToList();
 
                 if ((!directory && !file)
                     || (directory && row["ItemType"].ToString() == "Directory")
