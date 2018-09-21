@@ -19,6 +19,7 @@ namespace GetSlnItem
             this.directory = directory;
             this.file = file;
             Table.Columns.Add(new DataColumn("Name", typeof(string)));
+            Table.Columns.Add(new DataColumn("FullName", typeof(string)));
             Table.Columns.Add(new DataColumn("VirtualDirectory", typeof(string)));
             Table.Columns.Add(new DataColumn("Path", typeof(string)));
             Table.Columns.Add(new DataColumn("ItemType", typeof(string)));
@@ -34,6 +35,7 @@ namespace GetSlnItem
             {
                 var row = Table.NewRow();
                 row["Name"] = item.ProjectName;
+                row["FullName"] = System.IO.File.Exists(item.AbsolutePath) ? item.AbsolutePath : null;
                 row["Path"] = System.IO.File.Exists(item.AbsolutePath) ? item.RelativePath : null;
                 row["ItemType"] = item.ProjectType == SolutionProjectType.SolutionFolder
                     ? "Directory"
